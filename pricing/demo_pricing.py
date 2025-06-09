@@ -13,8 +13,7 @@ minutes = 3      # time increase per duplicate alt
 
 # Create the list of arguments
 args = [
-    #"python",
-    "/Users/tomhaering/miniforge-pypy3/envs/downgrade/bin/python",
+    "python",
     "solve_cpp.py",
     str(N),
     str(R),
