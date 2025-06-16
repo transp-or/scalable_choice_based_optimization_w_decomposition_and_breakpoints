@@ -11205,93 +11205,93 @@ function main_nat_latent(N, R, C, D, seed_start, seed_end)
 			continue 
 		end
 
-        # Define initial guess for beta and initial step size (sigma)
-        if !isnothing(extra_inds)
-            E = length(extra_inds)
-        else
-            E = 0
-        end
-        H = length(mix_inds)
-        K = 5 # holds for both SM and LPMC
-
-        initial_beta = Float64.(vcat(fill(0, K), fill(1, H), fill(0, E), fill(0, actualC-1)))
-        # initial_beta = ones(length(FirstbioBeta))
-        # LB = minimum([- maximum(abs.(FirstbioBeta)) * 1.5, -12])
-        # UB = maximum([maximum(abs.(FirstbioBeta)) * 1.5, 12])
-		
-        LB = -100.0
-        UB = 100.0 
-		
-        ssigma = Float64((UB-LB) / 3) 
-		# dim = length(initial_beta)
-		# λ_value = 4 + floor(Int, 10 * log(dim))
-		# λ_value = max(λ_value, 10)  # Ensure a minimum population size, e.g., 10
-        λ_value = Int(50) 
-
-        timeCMA_ES = @elapsed begin
-            CMA_ES_beta, CMA_ES_LL_orig = find_optimal_full_beta_cmaes(N, C, actualC, D, pandaSeed, R, old_x, old_y, old_av, class_1_ks, class_2_ks, class_3_ks, initial_beta, LB, UB; λ=λ_value, sigma0=ssigma)
-        end
-		
-		if 1000 <= C <= 1999
-			CMA_ES_LL = simulate_likelihood_mixed(N, D, pandaSeed, CMA_ES_beta, C, simR)
-		elseif actualC == 2 # should only be accessed in logit latent
-			CMA_ES_LL = compute_LL_latent2classes(old_x, old_y, old_av, CMA_ES_beta, class_1_ks, class_2_ks, biogeme=true)
-		elseif actualC == 3
-			CMA_ES_LL = compute_LL_latent3classes(old_x, old_y, old_av, CMA_ES_beta, class_1_ks, class_2_ks, class_3_ks, biogeme=true)
-		end
-		
-		println("CMA_ES_LL_orig = ", CMA_ES_LL_orig)
-		println("CMA_ES_LL = ", CMA_ES_LL)
-		println("CMA_ES_Beta = ", CMA_ES_beta)
-        println("CMA_ES_Time = ", timeCMA_ES)
-		flush(stdout)
-
-        # Run Biogeme for the third estimation
-
-        # scale beta to avoid overflow in Biogeme exp
-        cap_value = -Inf
-        if any(x -> x > cap_value, CMA_ES_beta)
-			# clamped_CMA_ES_beta = clamp.(CMA_ES_beta, -Inf, cap_value)
-            scaled_CMA_ES_beta = scale_to_range(CMA_ES_beta, (LB, UB))
-        else
-            scaled_CMA_ES_beta = CMA_ES_beta
-        end
-
-        # println("Scaled_CMA_ES_beta: ", scaled_CMA_ES_beta)
-
-        startbeta2 = copy(scaled_CMA_ES_beta)
-        expCutOff = 20
-        if actualC == 2
-            if startbeta2[end] > expCutOff
-                startbeta2[end] = expCutOff
-            end
-        elseif actualC == 3
-            if startbeta2[end] > expCutOff
-                startbeta2[end] = expCutOff
-            end
-            if startbeta2[end-1] > expCutOff
-                startbeta2[end-1] = expCutOff
-            end
-        end
-
-        println("startbeta2 = ", startbeta2)
-
-        ThirdbioBeta, ThirdbioTime, ThirdbioLL, ThirdbioProbs = run_Biogeme_Latent(N, bioR, C, pandaSeed, Mseed, Tseed, MseedL, TseedL, MseedSM, TseedSM, startbeta2)
-        
-        if 1000 <= C <= 1999
-            Third_Bio_LL = simulate_likelihood_mixed(N, D, pandaSeed, ThirdbioBeta, C, simR)
-        elseif actualC == 2 # should only be accessed in logit latent
-            Third_Bio_LL = compute_LL_latent2classes(old_x, old_y, old_av, ThirdbioBeta, class_1_ks, class_2_ks, biogeme=true)
-        elseif actualC == 3
-            Third_Bio_LL = compute_LL_latent3classes(old_x, old_y, old_av, ThirdbioBeta, class_1_ks, class_2_ks, class_3_ks, biogeme=true)
-		end
-
-        println("ThirdbioLL = ", ThirdbioLL)
-		println("Third_Bio_LL = ", Third_Bio_LL)
-        println("Third Bio Improvement = ", round(((First_Bio_LL - Third_Bio_LL)/First_Bio_LL) * 100,digits=2))
-        println("ThirdbioBeta = ", ThirdbioBeta)
-        println("ThirdbioTime = ", ThirdbioTime)
-		flush(stdout)
+ 		#        # Define initial guess for beta and initial step size (sigma)
+		#         if !isnothing(extra_inds)
+		#             E = length(extra_inds)
+		#         else
+		#             E = 0
+		#         end
+		#         H = length(mix_inds)
+		#         K = 5 # holds for both SM and LPMC
+		#
+		#         initial_beta = Float64.(vcat(fill(0, K), fill(1, H), fill(0, E), fill(0, actualC-1)))
+		#         # initial_beta = ones(length(FirstbioBeta))
+		#         # LB = minimum([- maximum(abs.(FirstbioBeta)) * 1.5, -12])
+		#         # UB = maximum([maximum(abs.(FirstbioBeta)) * 1.5, 12])
+		#
+		#         LB = -100.0
+		#         UB = 100.0
+		#
+		#         ssigma = Float64((UB-LB) / 3)
+		# # dim = length(initial_beta)
+		# # λ_value = 4 + floor(Int, 10 * log(dim))
+		# # λ_value = max(λ_value, 10)  # Ensure a minimum population size, e.g., 10
+		#         λ_value = Int(50)
+		#
+		#         timeCMA_ES = @elapsed begin
+		#             CMA_ES_beta, CMA_ES_LL_orig = find_optimal_full_beta_cmaes(N, C, actualC, D, pandaSeed, R, old_x, old_y, old_av, class_1_ks, class_2_ks, class_3_ks, initial_beta, LB, UB; λ=λ_value, sigma0=ssigma)
+		#         end
+		#
+		# if 1000 <= C <= 1999
+		# 	CMA_ES_LL = simulate_likelihood_mixed(N, D, pandaSeed, CMA_ES_beta, C, simR)
+		# elseif actualC == 2 # should only be accessed in logit latent
+		# 	CMA_ES_LL = compute_LL_latent2classes(old_x, old_y, old_av, CMA_ES_beta, class_1_ks, class_2_ks, biogeme=true)
+		# elseif actualC == 3
+		# 	CMA_ES_LL = compute_LL_latent3classes(old_x, old_y, old_av, CMA_ES_beta, class_1_ks, class_2_ks, class_3_ks, biogeme=true)
+		# end
+		#
+		# println("CMA_ES_LL_orig = ", CMA_ES_LL_orig)
+		# println("CMA_ES_LL = ", CMA_ES_LL)
+		# println("CMA_ES_Beta = ", CMA_ES_beta)
+		#         println("CMA_ES_Time = ", timeCMA_ES)
+		# flush(stdout)
+		#
+		#         # Run Biogeme for the third estimation
+		#
+		#         # scale beta to avoid overflow in Biogeme exp
+		#         cap_value = -Inf
+		#         if any(x -> x > cap_value, CMA_ES_beta)
+		# 	# clamped_CMA_ES_beta = clamp.(CMA_ES_beta, -Inf, cap_value)
+		#             scaled_CMA_ES_beta = scale_to_range(CMA_ES_beta, (LB, UB))
+		#         else
+		#             scaled_CMA_ES_beta = CMA_ES_beta
+		#         end
+		#
+		#         # println("Scaled_CMA_ES_beta: ", scaled_CMA_ES_beta)
+		#
+		#         startbeta2 = copy(scaled_CMA_ES_beta)
+		#         expCutOff = 20
+		#         if actualC == 2
+		#             if startbeta2[end] > expCutOff
+		#                 startbeta2[end] = expCutOff
+		#             end
+		#         elseif actualC == 3
+		#             if startbeta2[end] > expCutOff
+		#                 startbeta2[end] = expCutOff
+		#             end
+		#             if startbeta2[end-1] > expCutOff
+		#                 startbeta2[end-1] = expCutOff
+		#             end
+		#         end
+		#
+		#         println("startbeta2 = ", startbeta2)
+		#
+		#         ThirdbioBeta, ThirdbioTime, ThirdbioLL, ThirdbioProbs = run_Biogeme_Latent(N, bioR, C, pandaSeed, Mseed, Tseed, MseedL, TseedL, MseedSM, TseedSM, startbeta2)
+		#
+		#         if 1000 <= C <= 1999
+		#             Third_Bio_LL = simulate_likelihood_mixed(N, D, pandaSeed, ThirdbioBeta, C, simR)
+		#         elseif actualC == 2 # should only be accessed in logit latent
+		#             Third_Bio_LL = compute_LL_latent2classes(old_x, old_y, old_av, ThirdbioBeta, class_1_ks, class_2_ks, biogeme=true)
+		#         elseif actualC == 3
+		#             Third_Bio_LL = compute_LL_latent3classes(old_x, old_y, old_av, ThirdbioBeta, class_1_ks, class_2_ks, class_3_ks, biogeme=true)
+		# end
+		#
+		#         println("ThirdbioLL = ", ThirdbioLL)
+		# println("Third_Bio_LL = ", Third_Bio_LL)
+		#         println("Third Bio Improvement = ", round(((First_Bio_LL - Third_Bio_LL)/First_Bio_LL) * 100,digits=2))
+		#         println("ThirdbioBeta = ", ThirdbioBeta)
+		#         println("ThirdbioTime = ", ThirdbioTime)
+		# flush(stdout)
 
         # total_LL_1 += First_Bio_LL
         # total_LL_2 += Second_Bio_LL
