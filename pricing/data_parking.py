@@ -368,7 +368,7 @@ def demand(N, data_dict, more_classes=False):
         data_dict['Res'] = np.array(new_list)
 
 
-def getData(N, R, J_PSP=1, J_PUP=1, more_classes=False):
+def getData(N, R, J_PSP=1, J_PUP=1, more_classes=False, rand_seed=42):
     '''Construct a dictionary 'dict' containing all the input data'''
 
     # Initialize the output dictionary
@@ -381,7 +381,7 @@ def getData(N, R, J_PSP=1, J_PUP=1, more_classes=False):
     data_dict['R'] = R
 
     # Set random seed
-    np.random.seed(10)
+    np.random.seed(rand_seed)
 
     # 1) Read discrete choice model parameters
     # 2) Read supply data
@@ -550,9 +550,9 @@ def preprocessUtilities(data_dict, more_classes, minutes):
     #     print(f"util_{i} = ", exo_utility[i, 0, 0] + 0.5 * endo_coef_array[i, 0, 0])
 
 
-def get_input_data_parking(N, R, J_PSP=1, J_PUP=1, more_classes=False, minutes=0):
+def get_input_data_parking(N, R, J_PSP=1, J_PUP=1, more_classes=False, minutes=0, rand_seed=42):
     # Read instance
-    data = getData(N, R, J_PSP, J_PUP, more_classes)
+    data = getData(N, R, J_PSP, J_PUP, more_classes, rand_seed)
     # Precompute exogenous part of the utility and beta_cost parameters
 
     # Given data_dict['J_tot'], data_dict['N'], data_dict['R'] and some beta stuff compute the actual exo and endo terms

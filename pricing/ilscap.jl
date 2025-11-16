@@ -1538,7 +1538,7 @@ function run_algo(N, S, J_PSP, J_PUP)
     println("time_heur     = ",time_heur)
     println("LS iterations = ",iterations)
     println("best_obj      = ",best_obj)
-    println("best_prices   = ",best_prices)
+	println("best_prices   = ",best_prices)
     
 
 end;

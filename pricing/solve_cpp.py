@@ -72,6 +72,11 @@ try:
     timetricks = bool(int(sys.argv[15]))
 except IndexError:
     timetricks = False
+    
+try:
+    rand_seed = int(sys.argv[16])
+except IndexError:
+    rand_seed = 42
 
 guided_branch = False
 forced_improvement = False
@@ -619,7 +624,7 @@ def cpp_benders(N, R, J_PSP, J_PUP, p_L, p_U, time_limit=10800, startpr=None, gu
                 gapcuts=False, guidedenum=False, optcut=False, mcm2=False, objcut=False, cap=False, more_classes=False,
                 pl_VIs=False, forced_improvement=False, breakbounds=False, do_vis=False, heuro=False, minutes=0,
                 addeta=0, optvalid=0):
-    if meth_input in [[7], [8], [9], [10], [11], [82]]:
+    if meth_input in [[7], [8], [9], [10], [11], [82], [83], [12]]:
         heuro = True
     
     forced_improvement = False
@@ -628,6 +633,8 @@ def cpp_benders(N, R, J_PSP, J_PUP, p_L, p_U, time_limit=10800, startpr=None, gu
     BEAcap = False
     ILScap = False
     ILSnocap = False
+    cmaes = False
+    cmaescap = False
     if meth_input == [8]:
         behanocap = True
     elif meth_input == [9]:
@@ -638,6 +645,10 @@ def cpp_benders(N, R, J_PSP, J_PUP, p_L, p_U, time_limit=10800, startpr=None, gu
         ILScap = True
     elif meth_input == [82]:
         ILSnocap = True
+    elif meth_input == [83]:
+        cmaes = True
+    elif meth_input == [12]:
+        cmaescap = True
 
     if onep_input:
         parking_data = get_input_data_parking(N, R, J_PSP=1, J_PUP=1)  # we gain one-price setting from two-price
@@ -651,7 +662,7 @@ def cpp_benders(N, R, J_PSP, J_PUP, p_L, p_U, time_limit=10800, startpr=None, gu
             parking_data = get_input_data_parking_logit(N, R, J_PSP, J_PUP)
         else:
             parking_data = get_input_data_parking(N, R, J_PSP, J_PUP, more_classes,
-                                                  minutes)  # this is where we get data
+                                                  minutes, rand_seed)  # this is where we get data
         J = parking_data["J_tot"]
 
         if heuro:  # save data for heur and run heuristic
@@ -679,15 +690,19 @@ def cpp_benders(N, R, J_PSP, J_PUP, p_L, p_U, time_limit=10800, startpr=None, gu
             # exit()
 
             if behanocap:
-                command = f"julia heur_0.jl {N} {R} {J_PSP} {J_PUP}"
+                command = f"julia bha.jl {N} {R} {J_PSP} {J_PUP}"
             elif ILSnocap:
-                command = f"julia heur_4.jl {N} {R} {J_PSP} {J_PUP}"
+                command = f"julia ils.jl {N} {R} {J_PSP} {J_PUP}"
             elif behacap:
                 command = f"julia bhac.jl {N} {R} {J_PSP} {J_PUP}"
             elif ILScap:
                 command = f"julia ilscap.jl {N} {R} {J_PSP} {J_PUP}"
             elif BEAcap:
                 command = f"julia beac.jl {N} {R} {J_PSP} {J_PUP}"
+            elif cmaes:
+                command = f"julia cmaes.jl {N} {R} {J_PSP} {J_PUP}"
+            elif cmaescap:
+                command = f"julia cmaescap.jl {N} {R} {J_PSP} {J_PUP}"
             else:
                 command = f"julia bea.jl {N} {R} {J_PSP} {J_PUP}"
 
@@ -698,7 +713,7 @@ def cpp_benders(N, R, J_PSP, J_PUP, p_L, p_U, time_limit=10800, startpr=None, gu
 
             #print(output)
 
-            if meth_input in [[7], [8], [10], [11], [82]]:
+            if meth_input in [[7], [8], [10], [11], [82], [83], [12]]:
                 # Extract time_heur values and select the second one
                 time_heur = float(re.findall(r"time_heur\s*=\s*([0-9.e+-]+)", output)[1])  # Second occurrence
                 # Extract best_obj values and select the second one
@@ -1334,6 +1349,28 @@ elif meth_input == [11]:
                                                                          time_limit=timelim,
                                                                          mcm2=mcm2)
     print(f"R={R}, ILSC gives", prices_norm, obj_norm, "in", time_norm, "s")
+elif meth_input == [83]:
+    prices_norm, time_norm, obj_norm, node_norm, occs_norm = cpp_benders(N=N,
+                                                                         R=R,
+                                                                         J_PSP=J_PSP,
+                                                                         J_PUP=J_PUP,
+                                                                         p_L=p_L,
+                                                                         p_U=p_U,
+                                                                         minutes=minutes,
+                                                                         time_limit=timelim,
+                                                                         mcm2=mcm2)
+    print(f"R={R}, CMA-ES gives", prices_norm, obj_norm, "in", time_norm, "s")
+elif meth_input == [12]:
+    prices_norm, time_norm, obj_norm, node_norm, occs_norm = cpp_benders(N=N,
+                                                                         R=R,
+                                                                         J_PSP=J_PSP,
+                                                                         J_PUP=J_PUP,
+                                                                         p_L=p_L,
+                                                                         p_U=p_U,
+                                                                         minutes=minutes,
+                                                                         time_limit=timelim,
+                                                                         mcm2=mcm2)
+    print(f"R={R}, CMA-ES (C) gives", prices_norm, obj_norm, "in", time_norm, "s")
 else:
-    print("Method is not 2, 3, 4, 5, 6, 7, 8, 9, 10, or 11")
+    print("Method is not 2, 3, 4, 5, 6, 7, 8, 82, 83, 9, 10, 11 or 12")
 

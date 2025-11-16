@@ -11,24 +11,9 @@ using DataStructures
 using Random
 using NPZ
 using Dates
+using LinearAlgebra
 
-using Logging
-using Printf
-using FileIO
 
-function setup_logging()
-    logdir = "TextOutputsBEA"
-    if !isdir(logdir)
-        mkpath(logdir)
-    end
-    logfile = joinpath(logdir, "output.log")
-    return open(logfile, "w")
-end
-
-function log_message(io, msg)
-    println(io, msg)
-    flush(io)
-end
 
 # using Statistics # for using mean()
 
@@ -118,149 +103,71 @@ end;
 # Z_opt/S : Optimal value (rescaled to account for the number of scenarios)
 ##########################################################################################################
 function polytime(h, phi, theta, a, b)
-	log_io = setup_logging()
-	
-	start_time = now()
+
     # Problem size
     (N,S,C) = size(theta)
     D = C-1
     NS = N*S
+
     # Flatten N×S matrices to N*S vectors and N×S×C matrices to (N*S)×C matrices
     # Result: simulated customers iin{1,…,N*S}
     phi_  = reshape(phi, NS, C)
     v_  = phi_
     theta_  = reshape(theta, NS, C)
-	
+    
+#     println("")
+#     println("")
+#     println("phi_ = ")
+#     println(phi_)
+#     println("")
+#     println("theta_ = ")
+#     println(theta_)
+#     println("")
+#     println("")
+
     #Initial solution
-    # x_opt = zeros(D)
-    # Z_opt = 0
-	x_opt = (a + b) / 2
-	Z_opt_div, _ = compute_obj_value(x_opt, S, zeros(N, D+1), phi_, theta_)
-	Z_opt = Z_opt_div * S
-	
-	println("first prices = ", x_opt)
-	println("obj value = ", Z_opt)
-	flush(stdout)
-	
-	log_message(log_io, "first prices = $(x_opt)")
-	log_message(log_io, "obj value = $(Z_opt)")
-	
-	
+    x_opt = zeros(D)
+    Z_opt = 0
 	iteration = 0
+    
+#     loose_index = 0
+#     for i in 1:D
+#         if a[i] ≈ b[i]
+#             loose_index = i
+#         end
+#     end
+    
+#     sort_bnds = sortperm([a[j] for j in 1:D])
+
     loosis = count_loose_variables(a, b)
+    
     if loosis == 1
         orders = generate_orderings(a, b)
     else
         orders = permutations(collect(1:D))
     end
+    
+    # Iterate through all permutations of prices orderings
+    # for idx_d in permutations(collect(1:D))
     for idx_d in orders
+#     for idx_d in [[1, 2, 3, 4]]
+#         println("Permutation idx_d = ", idx_d) 
+        # Solve the problem for x[idx_d[1]]≤x[idx_d[2]]≤…≤x[idx_d[D]]
         (x,Z) = polytime_recursion(D, N, S, v_, theta_, a, b, idx_d)
-		elapsed_time = now() - start_time
-		println("new ordering solved after ", elapsed_time)
-		println("prices = ", x)
-		println("obj value = ", Z)
-		flush(stdout)
-		
-		log_message(log_io, "new ordering solved after $(elapsed_time)")
-		log_message(log_io, "prices = $(x)")
-		log_message(log_io, "obj value = $(Z)")
-		
 		iteration = iteration + 1
+# 		println("Finished permutation  = ", iteration)
+#         println("Gives x = ", x, "with obj val = ", Z)
+        # Update the incumbent solution
         if(Z > Z_opt)
             x_opt = x
             Z_opt = Z
-			elapsed_time = now() - start_time
-			println("new best after ", elapsed_time)
-			println("prices = ", x_opt)
-			println("obj value = ", Z_opt)
-			println("")
-			flush(stdout)
-			
-			log_message(log_io, "new best after $(elapsed_time)")
-			log_message(log_io, "prices = $(x_opt)")
-			log_message(log_io, "obj value = $(Z_opt)")
-			log_message(log_io, "")
+#             println("new best!")
         end
     end
-	close(log_io)
+
     # Optimal solution
     return (x_opt, Z_opt/S)
 end;
-
-
-# function polytime(h, phi, theta, a, b)
-#
-# 	start_time = now()
-#
-#     # Problem size
-#     (N,S,C) = size(theta)
-#     D = C-1
-#     NS = N*S
-#
-#     # Flatten N×S matrices to N*S vectors and N×S×C matrices to (N*S)×C matrices
-#     # Result: simulated customers iin{1,…,N*S}
-#     phi_  = reshape(phi, NS, C)
-#     v_  = phi_
-#     theta_  = reshape(theta, NS, C)
-#
-# #     println("")
-# #     println("")
-# #     println("phi_ = ")
-# #     println(phi_)
-# #     println("")
-# #     println("theta_ = ")
-# #     println(theta_)
-# #     println("")
-# #     println("")
-#
-#     #Initial solution
-#     x_opt = zeros(D)
-#     Z_opt = 0
-# 	iteration = 0
-#
-# #     loose_index = 0
-# #     for i in 1:D
-# #         if a[i] ≈ b[i]
-# #             loose_index = i
-# #         end
-# #     end
-#
-# #     sort_bnds = sortperm([a[j] for j in 1:D])
-#
-#     loosis = count_loose_variables(a, b)
-#
-#     if loosis == 1
-#         orders = generate_orderings(a, b)
-#     else
-#         orders = permutations(collect(1:D))
-#     end
-#
-#     # Iterate through all permutations of prices orderings
-#     # for idx_d in permutations(collect(1:D))
-#     for idx_d in orders
-# #     for idx_d in [[1, 2, 3, 4]]
-# #         println("Permutation idx_d = ", idx_d)
-#         # Solve the problem for x[idx_d[1]]≤x[idx_d[2]]≤…≤x[idx_d[D]]
-#         (x,Z) = polytime_recursion(D, N, S, v_, theta_, a, b, idx_d)
-# 		iteration = iteration + 1
-# # 		println("Finished permutation  = ", iteration)
-# #         println("Gives x = ", x, "with obj val = ", Z)
-#         # Update the incumbent solution
-#         if(Z > Z_opt)
-#             x_opt = x
-#             Z_opt = Z
-# 			elapsed_time = now() - start_time
-# 			println("new best after ", elapsed_time)
-# 			println("prices = ", x_opt)
-# 			println("obj value = ", Z_opt)
-# 			println("")
-# 			flush(stdout)
-#         end
-#     end
-#
-#     # Optimal solution
-#     return (x_opt, Z_opt/S)
-# end;
 
 
 ##########################################################################################################
@@ -329,13 +236,6 @@ function polytime_recursion(D, N, S, v_, theta_, a, b, idx_d; d=1, x=zeros(D), �
         if(Z_rec > Z_opt) # Update the incumbent solution
             Z_opt = Z_rec
             x_opt = deepcopy(x_rec)
-			# elapsed_time = Millisecond(now() - start_time).value
-			# if abs(elapsed_time % 5000 - 5000) < 2 || abs(elapsed_time % 5000) < 2
-			#                 println("new best after ", elapsed_time)
-			# 		        println("prices = ", x_opt)
-			# 		        println("obj value = ", Z_opt)
-			# 		        println("")
-			# end
         end
         
         # this will initialize ALL prices to their upperbounds, because it starts at 1, but one does not continue before it did the same for 2
@@ -414,13 +314,6 @@ function polytime_recursion(D, N, S, v_, theta_, a, b, idx_d; d=1, x=zeros(D), �
             if(Z > Z_opt) # Update the incumbent solution
                 Z_opt = Z
                 x_opt = deepcopy(x)
-				# elapsed_time = Millisecond(now() - start_time).value
-				# if abs(elapsed_time % 5000 - 5000) < 2 || abs(elapsed_time % 5000) < 2
-				# 	                println("new best after ", elapsed_time)
-				# 			        println("prices = ", x_opt)
-				# 			        println("obj value = ", Z_opt)
-				# 			        println("")
-				# end
 #                 println("deep level: new best")
             end
         end
@@ -547,7 +440,69 @@ function compute_obj_value_priority_queue(x, h, phi, theta, caps, prio_queue)
     return Z, occ, final_choices
 end;
 
-function compute_obj_value_with_forced_capacities(x, h, phi, theta, caps; inv=false)
+function compute_obj_value_priority_queue(x, h, phi, theta, caps, prio_queue)
+    (NS,C) = size(theta)
+    D = C-1
+    idx_d = sortperm(x) # identify ordering of prices
+    push!(idx_d, C) # idx_d[D+1] = D+1
+    push!(caps, NS+1)
+
+    # Compute the utilities
+    x = vcat(x, 0) #x[D+1]=0 (opt-out option) THIS ALLOWS TO USE 1:C, not bad
+    u = zeros(NS,C)
+    
+    occ = zeros(Int, C)
+    
+    phi_  = phi
+    theta_  = theta
+    
+    final_choices = zeros(Int, NS)
+    
+    for idx in prio_queue
+        for c in 1:C
+            u[idx,c] = phi_[idx,c]+theta_[idx,c]*x[c]
+        end
+
+        # to match the cooperative assumption (⟺ in case of equality, the customer
+        # selects the most expensive alternative (i.e. the most useful alternative for the leader))
+        for c1_c2 in collect(combinations(1:C, 2))
+            c1 = c1_c2[1]
+            c2 = c1_c2[2]
+            #in case of equality (with tolerance to account for precision limits),
+            #remove some utility to the least expensive alternative
+            if(u[idx,c1] ≈ u[idx,c2])
+                if(x[c1] > x[c2])
+                    u[idx,c2] -= 1
+                else
+                    u[idx,c1] -= 1
+                end
+            end
+        end
+
+        utils = [u[idx,j] for j in 1:C]
+        ordering = sortperm(utils, rev=true)
+
+        # now just go through their preferences, and if there is space we put them there, if not,
+        # they take the next best one
+        assigned = false
+        j = 1
+        while j <= C && !assigned
+            if occ[ordering[j]] <= caps[ordering[j]] - 1
+                final_choices[idx] = ordering[j]
+                occ[ordering[j]] += 1
+                assigned = true
+            else
+                j += 1
+            end 
+        end
+    end
+    
+    Z = sum(occ[j] * x[j] for j in 1:D)
+    
+    return Z, occ, final_choices
+end;
+
+function compute_obj_value_with_forced_capacities_scaled(x, S, h, phi, theta, caps; inv=false)
     (NS,C) = size(theta)
     D = C-1
     idx_d = sortperm(x) # identify ordering of prices
@@ -620,7 +575,7 @@ function compute_obj_value_with_forced_capacities(x, h, phi, theta, caps; inv=fa
         end
     end
     
-    Z = sum(occ[j] * x[j] for j in 1:D)
+    Z = sum(occ[j] * x[j] for j in 1:D)/S
     
     return Z, occ, final_choices # I actually dont compute the final choices, sorry
 end;
@@ -1464,7 +1419,9 @@ function line_search_cap(exo_utility, endo_coef, S, a, b, curr_prices, curr_obj,
 end;
 
 function extended_line_search_cap(exo_utility, endo_coef, S, a, b, curr_prices, curr_obj, caps, prio_queue=nothing; inv=false)
-    NS,C = size(exo_utility)
+    start_time = now()
+	
+	NS,C = size(exo_utility)
     D = C-1
     line_search_delta = 0.005
     step_increase_factor = 2
@@ -1500,6 +1457,12 @@ function extended_line_search_cap(exo_utility, endo_coef, S, a, b, curr_prices, 
                         	best_prices = new_prices
                         	improvement = true
                         	no_improvement_streak = 0  # Reset the no-improvement streak
+							elapsed_time = now() - start_time
+							println("new best after ", elapsed_time)
+							println("prices = ", best_prices)
+							println("obj value = ", best_obj)
+							println("")
+							flush(stdout)
                     	end
 					end
                 end
@@ -1529,6 +1492,126 @@ function extended_line_search_cap(exo_utility, endo_coef, S, a, b, curr_prices, 
     return best_obj, best_prices, iterations
 end;
 
+function obj_value_caps_fun(x, S, h, exo_utility_, endo_coef_, caps, prio_queue)
+	val, _, _ = compute_obj_value_priority_queue_scaled(x, S, h, exo_utility_, endo_coef_, caps, prio_queue)
+    return -val  
+end
+
+function obj_value_fun(x, S, h, exo_utility_, endo_coef_)
+	val, _ = compute_obj_value(x, S, h, exo_utility_, endo_coef_)
+    return -val  
+end
+
+
+function optimize_parameters_cmaes(
+    a::Vector{Float64}, 
+    b::Vector{Float64},
+    S, D,
+    exo_utility_, 
+    endo_coef_;
+    λ::Int = 30,
+    sigma0::Float64 = (maximum(b) - minimum(a)) / 3.0,
+    max_iters::Int = 1000
+)
+
+    # --- Start vector is midpoint ---
+    start_parameters = (a .+ b) ./ 2
+
+    # Bounds
+    lb = a
+    ub = b
+
+	# dim
+	J = length(a)
+
+    # CMA-ES Parameters
+    m = start_parameters  # initial mean
+    σ = sigma0            # initial step size
+    C = I * σ^2           # initial covariance matrix (scaled identity matrix)
+	c1 = 2 / (λ + 1.3)    # learning rate for the mean
+    pc = zeros(length(a)) # evolution path for mean
+    ps = zeros(length(a)) # evolution path for step-size
+	wS = 1e-1 * S^(-1)    # scenario size scale parameter
+    w = [log(λ/2) - log(i) for i in 1:λ]  # weights for parent selection
+    w = w / sum(w)        # normalized weights
+    c2 = min(1 - c1, 2 * (λ - 2 + 1) / (λ + 2))  # learning rate for the covariance matrix
+    cmu = min(1 - c1, 2 * (λ - 2 + 1) / (λ + 2))  # coefficient for covariance matrix update
+    max_iter = max_iters * 2e-2 * S * (J - 1) # adjust for instance size
+
+    # Initialize variables to track best parameters and objective value
+    best_parameters = m
+    best_obj_value = Inf  # Start with a very high value
+
+    # Initialize iteration
+    for iter in 1:max_iter
+        # Generate λ new candidates from the current distribution
+        Z = randn(λ, length(a))  # Standard normal samples
+        B = C * Z'               # Apply the covariance matrix
+        X = m' .+ σ .* B'  # Shift by the current mean and scale by step size
+
+        # Evaluate the objective for each candidate
+        f_values = [bounded_objective_function_new(collect(x), S, D, exo_utility_, endo_coef_, lb, ub) for x in eachrow(X)]
+
+        # Sort the candidates based on objective function values
+        sorted_indices = sortperm(f_values, rev=true)
+        X = X[sorted_indices, :]
+        f_values = f_values[sorted_indices]
+
+        # Track the best objective and parameters
+        if f_values[1] < best_obj_value
+            best_obj_value = f_values[1]
+            best_parameters = X[1, :]
+        end
+
+        # Compute weighted mean of the best candidates
+        m_new = sum(w .* X[1:λ, :], dims=1)'  # Weighted mean of best candidates
+        ps_new = (1 - c1) * ps + sqrt(c1 * (2 - c1 * wS) * λ) * (m_new - m) / σ
+		m_old = m
+        m = m_new
+
+        # Subtract the mean vector m from each row of X
+        X_centered = X .- m'  # m' turns m into a row vector of shape (1, D)
+
+        # Update the covariance matrix
+        C = (1 - c2) * C + c2 * (ps_new * ps_new' + (1 - c1) * X_centered' * X_centered)
+
+        # Update step size (σ)
+        σ = σ * exp((c1 / 2) * wS * (norm(ps_new) / sqrt(length(a)) - 1))
+
+        # Check for convergence
+		if norm(ps_new) < 1e-12 && norm(m_new - m_old) < 1e-12 && norm(C - I * σ^2) < 1e-12
+		    break
+		end
+    end
+
+    # Return the best parameters and the best objective value
+    return best_parameters, -best_obj_value
+end
+
+
+
+function bounded_objective_function_new(
+    θ::Vector{Float64},
+    S, D,
+    exo_utility_,
+    endo_coef_,
+    lb::Vector{Float64},
+    ub::Vector{Float64};
+    penalty_factor = 1e6
+)
+
+    # Compute objective
+    obj_value = obj_value_fun(θ, S, zeros(D, D+1), exo_utility_, endo_coef_)
+
+    # Penalties
+    penalty =
+        sum((θ .< lb) .* penalty_factor .* abs.(lb .- θ)) +
+        sum((θ .> ub) .* penalty_factor .* abs.(θ .- ub))
+
+    return obj_value + penalty
+end
+
+
 function run_algo(N, S, J_PSP, J_PUP)
     N_orig = copy(N)
     S_orig = copy(S)
@@ -1553,14 +1636,24 @@ function run_algo(N, S, J_PSP, J_PUP)
 	a = [0.5, 0.65]
 	b = [0.7, 0.85]
     
+    caps = [2 * S for _ in 1:D]
+	
+    prio_queue = 1:(N*S)
+    
     println("Starting initialization, N=$N, S=$S")
     println("")
     println("")
 	
-    time_poly = (@timed begin (x_poly, Z_poly) = polytime(h, phi, theta, a, b)  end).time
-    println("time_heur     = ",time_poly)
-    println("best_obj      = ",Z_poly)
-    println("best_prices   = ",x_poly)
+    start_prices = (a + b) / 2
+    exo_utility_  = reshape(exo_utility, N*S, C)
+    endo_coef_  = reshape(endo_coef, N*S, C)
+    time_heur = (@timed begin
+	best_prices, best_obj = optimize_parameters_cmaes(a, b, S, D, exo_utility_, endo_coef_)
+    end).time
+	println("time_heur     = ",time_heur)
+    println("best_obj      = ",best_obj)
+    println("best_prices   = ",best_prices)
+    
     
     println("")
     println("")
@@ -1580,6 +1673,8 @@ function run_algo(N, S, J_PSP, J_PUP)
 	# Flatten the arrays to form a single level array
 	a = vcat(a...)
 	b = vcat(b...)
+	
+    prio_queue = 1:(N*S)
     
     println("Running real instance, N=$N, S=$S")
     println("")
@@ -1596,18 +1691,40 @@ function run_algo(N, S, J_PSP, J_PUP)
     N = size(exo_utility)[1]
     S = size(exo_utility)[2]
     D = size(exo_utility)[3] - 1
+    C = D+1
 
     phi = exo_utility; # exo_util, has shape NRJ
     theta = endo_coef; # endo_coefficient, has shape NRJ, last entry 0 / 1
 
     h = zeros(N,D+1); # reset so that u[n,s,c] = h[n,c]+phi[n,s,c]+theta[n,s,c]*x[c] is what it should be
-   
-    time_poly = (@timed begin (x_poly, Z_poly) = polytime(h, phi, theta, a, b)  end).time
-    println("time_heur     = ",time_poly)
-    println("best_obj      = ",Z_poly)
-	println("best_prices   = ",x_poly)
-		
+    
+	if N == 50
+		caps = [20 * S for _ in 1:D]
+	elseif N == 100
+		caps = [40 * S for _ in 1:D]
+	elseif N == 150
+		caps = [60 * S for _ in 1:D]
+	elseif N == 198
+		caps = [80 * S for _ in 1:D]
+	else
+		caps = [floor(N * 0.4) * S for _ in 1:D]
+	end
+	
+    start_prices = (a + b) / 2
+    exo_utility_  = reshape(exo_utility, N*S, C)
+    endo_coef_  = reshape(endo_coef, N*S, C)
+    time_heur = (@timed begin
+	best_prices, best_obj = optimize_parameters_cmaes(a, b, S, D, exo_utility_, endo_coef_)
+    end).time
+	println("time_heur     = ",time_heur)
+    println("best_obj      = ",best_obj)
+    println("best_prices   = ",best_prices)
+
+	# obj_value_caps = obj_value_caps_fun(best_prices, S, zeros(D,D+1), exo_utility_, endo_coef_, caps, prio_queue)
+	# obj_value = obj_value_fun(best_prices, S, zeros(D,D+1), exo_utility_, endo_coef_)
+
 end;
+vectoro = false;
 
 N = parse(Int, ARGS[1])
 S = parse(Int, ARGS[2])
@@ -1615,3 +1732,18 @@ J_PSP = parse(Int, ARGS[3])
 J_PUP = parse(Int, ARGS[4])
 
 run_algo(N, S, J_PSP, J_PUP)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

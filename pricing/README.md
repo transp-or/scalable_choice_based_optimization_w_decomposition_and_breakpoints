@@ -10,7 +10,7 @@ The code is designed to help replicate the results presented in the following tw
 ## 🔧 Setup
 
 # create python environment 
-# warning: this took several hours of package resolving on my machine. Might be easier to just run it on an empty environment and hope it works by just adding packages iteratively
+# warning: this took several hours of package resolving on my machine. Might be easier to just run it on an empty environment and just add the required packages iteratively
 conda env create -f pricing.yml -n pricing
 
 # activate python environment

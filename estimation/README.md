@@ -6,7 +6,7 @@ This repository contains code for running the BHAMLSE algorithm presented in the
 
 ## 🔧 Setup
 
-# create python environment (this may take a long time. Maybe faster to install packages on the go)
+# create python environment (this may take a long time. May be faster to install packages on the go)
 conda env create -f bhamsle.yml -n bhamsle
 
 # activate python environment
